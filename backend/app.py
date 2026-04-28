@@ -5,6 +5,7 @@ import json
 import html as html_utils
 from datetime import datetime, timezone, timedelta
 from functools import wraps
+from html.parser import HTMLParser
 from io import BytesIO
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -12,30 +13,65 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from flask import Flask, request, render_template, jsonify, redirect, session, url_for, g, make_response
 from werkzeug.security import generate_password_hash, check_password_hash
 
+from env_loader import load_env
+
+
+load_env()
+
 from ai_core import AICore
 from contest_routes import create_contest_blueprint
 
 try:
+    from reportlab.lib import colors
     from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import ParagraphStyle
     from reportlab.pdfbase import pdfmetrics
     from reportlab.pdfbase.ttfonts import TTFont
-    from reportlab.pdfgen import canvas
+    from reportlab.platypus import Paragraph, Preformatted, SimpleDocTemplate, Spacer
 
     REPORTLAB_AVAILABLE = True
 except Exception:
     REPORTLAB_AVAILABLE = False
 
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+def env_bool(name, default=False):
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def env_int(name, default):
+    try:
+        return int(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        return default
+
+
+def resolve_app_path(value, default=None):
+    raw = (value or "").strip()
+    if not raw:
+        return default
+    if os.path.isabs(raw):
+        return raw
+    return os.path.join(APP_DIR, raw)
+
+
 model = AICore()
 app = Flask(__name__)
-app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-change-me")
-app.config["DATABASE"] = os.getenv(
-    "DATABASE_PATH",
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), "app.db")
+secret_key = os.getenv("SECRET_KEY")
+if not secret_key:
+    raise RuntimeError("SECRET_KEY is not set. Add it to .env.")
+app.config["SECRET_KEY"] = secret_key
+app.config["DATABASE"] = resolve_app_path(
+    os.getenv("DATABASE_PATH"),
+    os.path.join(APP_DIR, "app.db")
 )
 app.config["SESSION_COOKIE_HTTPONLY"] = True
-app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-app.config["SESSION_COOKIE_SECURE"] = os.getenv(
-    "SESSION_COOKIE_SECURE", "false").lower() in {"1", "true", "yes"}
+app.config["SESSION_COOKIE_SAMESITE"] = os.getenv("SESSION_COOKIE_SAMESITE", "Lax")
+app.config["SESSION_COOKIE_SECURE"] = env_bool("SESSION_COOKIE_SECURE", False)
 
 USERNAME_REGEX = re.compile(r"^[A-Za-z0-9_]{3,32}$")
 DEFAULT_CHAT_THREAD_TITLE = "Новый чат"
@@ -185,24 +221,42 @@ PDF_FONT_BOLD = "Helvetica-Bold"
 PDF_FONT_READY = False
 
 
+def first_existing_path(paths):
+    return next((path for path in paths if path and os.path.exists(path)), None)
+
+
 def ensure_pdf_fonts():
     global PDF_FONT_READY, PDF_FONT_REGULAR, PDF_FONT_BOLD
     if PDF_FONT_READY or not REPORTLAB_AVAILABLE:
         return
 
     regular_candidates = [
-        r"C:\Windows\Fonts\arial.ttf",
+        resolve_app_path(os.getenv("PDF_FONT_REGULAR_PATH")),
+        os.path.join(APP_DIR, "static", "fonts", "DejaVuSans.ttf"),
+        os.path.join(APP_DIR, "static", "fonts", "NotoSans-Regular.ttf"),
         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
         "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
+        "/usr/local/share/fonts/DejaVuSans.ttf",
+        "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+        "/System/Library/Fonts/Supplemental/Arial.ttf",
+        "/Library/Fonts/Arial Unicode.ttf",
+        "/Library/Fonts/Arial.ttf",
+        r"C:\Windows\Fonts\arial.ttf",
     ]
     bold_candidates = [
-        r"C:\Windows\Fonts\arialbd.ttf",
+        resolve_app_path(os.getenv("PDF_FONT_BOLD_PATH")),
+        os.path.join(APP_DIR, "static", "fonts", "DejaVuSans-Bold.ttf"),
+        os.path.join(APP_DIR, "static", "fonts", "NotoSans-Bold.ttf"),
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
         "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
+        "/usr/local/share/fonts/DejaVuSans-Bold.ttf",
+        "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+        "/Library/Fonts/Arial Bold.ttf",
+        r"C:\Windows\Fonts\arialbd.ttf",
     ]
 
-    regular_path = next((path for path in regular_candidates if os.path.exists(path)), None)
-    bold_path = next((path for path in bold_candidates if os.path.exists(path)), None)
+    regular_path = first_existing_path(regular_candidates)
+    bold_path = first_existing_path(bold_candidates)
 
     try:
         if regular_path:
@@ -215,6 +269,14 @@ def ensure_pdf_fonts():
             PDF_FONT_BOLD = "AppSansBold"
         elif regular_path:
             PDF_FONT_BOLD = PDF_FONT_REGULAR
+        if PDF_FONT_REGULAR != "Helvetica":
+            pdfmetrics.registerFontFamily(
+                PDF_FONT_REGULAR,
+                normal=PDF_FONT_REGULAR,
+                bold=PDF_FONT_BOLD,
+                italic=PDF_FONT_REGULAR,
+                boldItalic=PDF_FONT_BOLD,
+            )
     except Exception:
         PDF_FONT_REGULAR = "Helvetica"
         PDF_FONT_BOLD = "Helvetica-Bold"
@@ -222,61 +284,357 @@ def ensure_pdf_fonts():
     PDF_FONT_READY = True
 
 
-def html_to_pdf_text(raw_html):
-    text = str(raw_html or "")
-    text = re.sub(r"(?i)<br\s*/?>", "\n", text)
-    text = re.sub(r"(?i)</(p|div|h1|h2|h3|h4|h5|h6|section|article|ul|ol)>", "\n", text)
-    text = re.sub(r"(?i)<li[^>]*>", "• ", text)
-    text = re.sub(r"(?i)</li>", "\n", text)
-    text = re.sub(r"<[^>]+>", " ", text)
-    text = html_utils.unescape(text)
+LATEX_REPLACEMENTS = {
+    r"\times": "×",
+    r"\cdot": "·",
+    r"\div": "÷",
+    r"\leq": "≤",
+    r"\le": "≤",
+    r"\geq": "≥",
+    r"\ge": "≥",
+    r"\neq": "≠",
+    r"\ne": "≠",
+    r"\approx": "≈",
+    r"\pm": "±",
+    r"\infty": "∞",
+    r"\quad": " ",
+    r"\qquad": " ",
+    r"\,": " ",
+    r"\;": " ",
+    r"\:": " ",
+    r"\left": "",
+    r"\right": "",
+}
+
+
+def is_simple_formula_part(value):
+    return bool(re.fullmatch(r"[A-Za-zА-Яа-яЁё0-9.,+\-]+", collapse_spaces(value)))
+
+
+def format_latex_for_pdf(value):
+    text = str(value or "")
+    text = text.replace("\xa0", " ")
+    text = text.replace(r"\[", "\n").replace(r"\]", "\n")
+    text = text.replace(r"\(", "").replace(r"\)", "")
+    text = text.replace(r"\\", "\n")
+
+    def replace_wrapped_command(command, replacement):
+        nonlocal text
+        pattern = re.compile(rf"\\{command}\{{([^{{}}]+)\}}")
+        for _ in range(8):
+            updated = pattern.sub(lambda match: replacement(format_latex_for_pdf(match.group(1))), text)
+            if updated == text:
+                break
+            text = updated
+
+    def replace_fraction(match):
+        numerator = format_latex_for_pdf(match.group(1))
+        denominator = format_latex_for_pdf(match.group(2))
+        if is_simple_formula_part(numerator) and is_simple_formula_part(denominator):
+            return f"{numerator}/{denominator}"
+        return f"({numerator})/({denominator})"
+
+    fraction_pattern = re.compile(r"\\(?:dfrac|tfrac|frac)\{([^{}]+)\}\{([^{}]+)\}")
+    for _ in range(12):
+        updated = fraction_pattern.sub(replace_fraction, text)
+        if updated == text:
+            break
+        text = updated
+
+    replace_wrapped_command("sqrt", lambda content: f"√({content})")
+    replace_wrapped_command("text", lambda content: content)
+    replace_wrapped_command("operatorname", lambda content: content)
+
+    for source, target in LATEX_REPLACEMENTS.items():
+        text = text.replace(source, target)
+
+    text = re.sub(r"\\begin\{[^{}]+\}", "", text)
+    text = re.sub(r"\\end\{[^{}]+\}", "", text)
+    text = re.sub(r"\\([A-Za-zА-Яа-яЁё]+)", r"\1", text)
+    text = text.replace("{", "").replace("}", "").replace("\\", "")
     lines = [collapse_spaces(line) for line in text.splitlines()]
-    lines = [line for line in lines if line]
-    return "\n".join(lines)
+    return "\n".join(line for line in lines if line)
 
 
-def wrap_pdf_line(text, font_name, font_size, max_width):
-    if not REPORTLAB_AVAILABLE:
-        return [text]
-    words = collapse_spaces(text).split(" ")
-    if not words:
-        return [""]
+def pdf_escape_text(value):
+    text = html_utils.escape(format_latex_for_pdf(value), quote=False)
+    return text.replace("\n", "<br/>")
 
-    lines = []
-    current = ""
 
-    def width(value):
-        return pdfmetrics.stringWidth(value, font_name, font_size)
+def clean_pdf_markup(value):
+    text = re.sub(r"[ \t\r\f\v]+", " ", str(value or ""))
+    text = re.sub(r"\s*<br\s*/>\s*", "<br/>", text)
+    text = re.sub(r"(<br/>){3,}", "<br/><br/>", text)
+    text = text.strip()
+    text = re.sub(r"^(<br/>)+", "", text)
+    text = re.sub(r"(<br/>)+$", "", text)
+    return text.strip()
 
-    for word in words:
-        if not word:
-            continue
-        candidate = word if not current else f"{current} {word}"
-        if width(candidate) <= max_width:
-            current = candidate
-            continue
 
-        if current:
-            lines.append(current)
-            current = ""
+def pdf_markup_to_plain(value):
+    text = re.sub(r"(?i)<br\s*/?>", "\n", str(value or ""))
+    text = re.sub(r"<[^>]+>", "", text)
+    return collapse_spaces(html_utils.unescape(text))
 
-        if width(word) <= max_width:
-            current = word
-            continue
 
-        chunk = ""
-        for ch in word:
-            ch_candidate = f"{chunk}{ch}"
-            if chunk and width(ch_candidate) > max_width:
-                lines.append(chunk)
-                chunk = ch
+PDF_BLOCK_TAGS = {"p", "h1", "h2", "h3", "h4", "h5", "h6", "li", "pre", "blockquote"}
+PDF_INLINE_TAGS = {
+    "strong": ("<b>", "</b>"),
+    "b": ("<b>", "</b>"),
+    "em": ("<i>", "</i>"),
+    "i": ("<i>", "</i>"),
+}
+
+
+class SummaryPdfHTMLParser(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.blocks = []
+        self.current = None
+        self.context_stack = []
+        self.list_stack = []
+        self.skip_depth = 0
+
+    def get_attr(self, attrs, name):
+        return next((value or "" for key, value in attrs if key.lower() == name), "")
+
+    def in_callout(self):
+        return "callout" in self.context_stack
+
+    def ensure_current(self, tag="p"):
+        if self.current is None:
+            self.start_block(tag)
+
+    def start_block(self, tag):
+        self.flush_current()
+        block_type = tag
+        if tag in {"h4", "h5", "h6"}:
+            block_type = "h3"
+        if tag == "blockquote" or (self.in_callout() and tag not in {"h1", "h2", "h3"}):
+            block_type = "callout"
+        if tag == "li":
+            block_type = "li"
+
+        level = max(0, len(self.list_stack) - 1)
+        bullet = None
+        if tag == "li":
+            list_context = self.list_stack[-1] if self.list_stack else {"tag": "ul", "index": 0}
+            if list_context["tag"] == "ol":
+                list_context["index"] += 1
+                bullet = f'{list_context["index"]}.'
             else:
-                chunk = ch_candidate
-        current = chunk
+                bullet = "•"
 
-    if current:
-        lines.append(current)
-    return lines or [""]
+        self.current = {
+            "tag": tag,
+            "type": block_type,
+            "parts": [],
+            "bullet": bullet,
+            "level": level,
+        }
+
+    def flush_current(self):
+        if self.current is None:
+            return
+
+        text = clean_pdf_markup("".join(self.current["parts"]))
+        if text:
+            self.blocks.append({
+                "type": self.current["type"],
+                "text": text,
+                "bullet": self.current["bullet"],
+                "level": self.current["level"],
+            })
+        self.current = None
+
+    def handle_starttag(self, tag, attrs):
+        tag = tag.lower()
+        if tag in {"script", "style"}:
+            self.skip_depth += 1
+            return
+        if self.skip_depth:
+            return
+
+        if tag == "br":
+            self.ensure_current()
+            self.current["parts"].append("<br/>")
+            return
+        if tag in {"ul", "ol"}:
+            self.flush_current()
+            self.list_stack.append({"tag": tag, "index": 0})
+            return
+        if tag == "div":
+            class_name = self.get_attr(attrs, "class")
+            self.flush_current()
+            self.context_stack.append("callout" if "summary-callout" in class_name else "div")
+            return
+        if tag in PDF_BLOCK_TAGS:
+            if tag == "p" and self.current and self.current["tag"] == "li":
+                return
+            self.start_block(tag)
+            return
+        if tag in PDF_INLINE_TAGS:
+            self.ensure_current()
+            self.current["parts"].append(PDF_INLINE_TAGS[tag][0])
+
+    def handle_endtag(self, tag):
+        tag = tag.lower()
+        if tag in {"script", "style"} and self.skip_depth:
+            self.skip_depth -= 1
+            return
+        if self.skip_depth:
+            return
+
+        if tag in PDF_INLINE_TAGS:
+            self.ensure_current()
+            self.current["parts"].append(PDF_INLINE_TAGS[tag][1])
+            return
+        if tag in PDF_BLOCK_TAGS:
+            if tag == "p" and self.current and self.current["tag"] == "li":
+                return
+            self.flush_current()
+            return
+        if tag in {"ul", "ol"}:
+            self.flush_current()
+            if self.list_stack:
+                self.list_stack.pop()
+            return
+        if tag == "div":
+            self.flush_current()
+            if self.context_stack:
+                self.context_stack.pop()
+
+    def handle_data(self, data):
+        if self.skip_depth or not data:
+            return
+        if not data.strip() and self.current is None:
+            return
+        self.ensure_current("p")
+        formatted = pdf_escape_text(data)
+        if not formatted:
+            if data.isspace() and self.current["parts"]:
+                self.current["parts"].append(" ")
+            return
+        if data[0].isspace():
+            formatted = f" {formatted}"
+        if data[-1].isspace():
+            formatted = f"{formatted} "
+        self.current["parts"].append(formatted)
+
+
+def html_to_pdf_blocks(raw_html):
+    parser = SummaryPdfHTMLParser()
+    try:
+        parser.feed(str(raw_html or ""))
+        parser.close()
+        parser.flush_current()
+    except Exception:
+        plain_text = strip_html_tags(str(raw_html or ""))
+        return [{"type": "p", "text": pdf_escape_text(plain_text), "bullet": None, "level": 0}]
+
+    if parser.blocks:
+        return parser.blocks
+
+    plain_text = strip_html_tags(str(raw_html or ""))
+    if not plain_text:
+        return []
+    return [{"type": "p", "text": pdf_escape_text(plain_text), "bullet": None, "level": 0}]
+
+
+def build_pdf_styles():
+    body = ParagraphStyle(
+        "SummaryBody",
+        fontName=PDF_FONT_REGULAR,
+        fontSize=11,
+        leading=15,
+        textColor=colors.HexColor("#202124"),
+        spaceAfter=7,
+    )
+    return {
+        "title": ParagraphStyle(
+            "SummaryTitle",
+            parent=body,
+            fontName=PDF_FONT_BOLD,
+            fontSize=18,
+            leading=23,
+            spaceAfter=4,
+        ),
+        "meta": ParagraphStyle(
+            "SummaryMeta",
+            parent=body,
+            fontSize=9.5,
+            leading=12,
+            textColor=colors.HexColor("#5f6368"),
+            spaceAfter=12,
+        ),
+        "h1": ParagraphStyle(
+            "SummaryH1",
+            parent=body,
+            fontName=PDF_FONT_BOLD,
+            fontSize=16,
+            leading=21,
+            spaceBefore=8,
+            spaceAfter=7,
+        ),
+        "h2": ParagraphStyle(
+            "SummaryH2",
+            parent=body,
+            fontName=PDF_FONT_BOLD,
+            fontSize=13.5,
+            leading=18,
+            spaceBefore=9,
+            spaceAfter=5,
+        ),
+        "h3": ParagraphStyle(
+            "SummaryH3",
+            parent=body,
+            fontName=PDF_FONT_BOLD,
+            fontSize=12,
+            leading=16,
+            spaceBefore=7,
+            spaceAfter=4,
+        ),
+        "body": body,
+        "li": ParagraphStyle(
+            "SummaryListItem",
+            parent=body,
+            leftIndent=18,
+            bulletIndent=4,
+            spaceAfter=4,
+        ),
+        "callout": ParagraphStyle(
+            "SummaryCallout",
+            parent=body,
+            backColor=colors.HexColor("#F6F8FB"),
+            borderColor=colors.HexColor("#D7DEE8"),
+            borderWidth=0.7,
+            borderPadding=7,
+            leftIndent=4,
+            rightIndent=4,
+            spaceBefore=5,
+            spaceAfter=8,
+        ),
+        "pre": ParagraphStyle(
+            "SummaryPre",
+            parent=body,
+            fontName=PDF_FONT_REGULAR,
+            fontSize=9.5,
+            leading=12,
+            backColor=colors.HexColor("#F6F8FB"),
+            borderColor=colors.HexColor("#D7DEE8"),
+            borderWidth=0.7,
+            borderPadding=6,
+            spaceBefore=5,
+            spaceAfter=8,
+        ),
+    }
+
+
+def append_pdf_paragraph(story, text, style, bullet_text=None):
+    try:
+        story.append(Paragraph(text, style, bulletText=bullet_text))
+    except Exception:
+        story.append(Paragraph(pdf_escape_text(pdf_markup_to_plain(text)), style, bulletText=bullet_text))
 
 
 def build_summary_pdf(summary):
@@ -287,49 +645,57 @@ def build_summary_pdf(summary):
 
     title = collapse_spaces(summary.get("title") or "Конспект")
     meta = f'{summary.get("subject", "")} • {summary.get("klass", "")} класс • {summary.get("theme", "")}'
-    body_text = html_to_pdf_text(summary.get("content_html") or "")
 
     buffer = BytesIO()
-    pdf = canvas.Canvas(buffer, pagesize=A4)
-    pdf.setTitle(title)
+    document = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        leftMargin=42,
+        rightMargin=42,
+        topMargin=44,
+        bottomMargin=42,
+        title=title,
+        author="PhantomHelperAI",
+    )
+    styles = build_pdf_styles()
+    story = [
+        Paragraph(pdf_escape_text(title), styles["title"]),
+        Paragraph(pdf_escape_text(meta), styles["meta"]),
+        Spacer(1, 4),
+    ]
 
-    page_width, page_height = A4
-    left = 42
-    right = page_width - 42
-    top = page_height - 44
-    bottom = 42
-    line_height = 16
-    y = top
+    skipped_duplicate_h1 = False
+    list_styles = {}
+    for block in html_to_pdf_blocks(summary.get("content_html") or ""):
+        block_type = block.get("type") or "body"
+        text = clean_pdf_markup(block.get("text") or "")
+        if not text:
+            continue
 
-    def new_page():
-        nonlocal y
-        pdf.showPage()
-        y = top
+        if not skipped_duplicate_h1 and block_type == "h1":
+            skipped_duplicate_h1 = True
+            if collapse_spaces(pdf_markup_to_plain(text)).lower() == title.lower():
+                continue
 
-    def draw_lines(lines, font_name, font_size):
-        nonlocal y
-        pdf.setFont(font_name, font_size)
-        for line in lines:
-            if y < bottom:
-                new_page()
-                pdf.setFont(font_name, font_size)
-            pdf.drawString(left, y, line)
-            y -= line_height
+        if block_type == "li":
+            level = int(block.get("level") or 0)
+            if level not in list_styles:
+                list_styles[level] = ParagraphStyle(
+                    f"SummaryListItem{level}",
+                    parent=styles["li"],
+                    leftIndent=18 + level * 14,
+                    bulletIndent=4 + level * 14,
+                )
+            append_pdf_paragraph(story, text, list_styles[level], block.get("bullet") or "•")
+            continue
 
-    title_lines = wrap_pdf_line(title, PDF_FONT_BOLD, 16, right - left)
-    draw_lines(title_lines, PDF_FONT_BOLD, 16)
-    y -= 6
+        if block_type == "pre":
+            story.append(Preformatted(pdf_markup_to_plain(text), styles["pre"]))
+            continue
 
-    meta_lines = wrap_pdf_line(meta, PDF_FONT_REGULAR, 11, right - left)
-    draw_lines(meta_lines, PDF_FONT_REGULAR, 11)
-    y -= 10
+        append_pdf_paragraph(story, text, styles.get(block_type, styles["body"]))
 
-    for paragraph in body_text.split("\n"):
-        wrapped = wrap_pdf_line(paragraph, PDF_FONT_REGULAR, 12, right - left)
-        draw_lines(wrapped, PDF_FONT_REGULAR, 12)
-        y -= 6
-
-    pdf.save()
+    document.build(story)
     return buffer.getvalue()
 
 
@@ -1677,4 +2043,8 @@ with app.app_context():
     init_db()
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=4000, debug=True)
+    app.run(
+        host=os.getenv("APP_HOST", "0.0.0.0"),
+        port=env_int("APP_PORT", 4000),
+        debug=env_bool("FLASK_DEBUG", True),
+    )

@@ -1,17 +1,27 @@
+import os
 from openai import OpenAI
 from flask import Flask, request, render_template, jsonify
 import json
 import re
 import html as html_utils
 
+from env_loader import load_env
+
+
+load_env()
+
 
 class AICore:
     def __init__(self):
+        api_key = os.getenv("AI_API_KEY") or os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise RuntimeError("AI_API_KEY is not set. Add it to .env.")
+
         self.client = OpenAI(
-            base_url="https://neuroapi.host/v1",
-            api_key="sk-G7cp4Eaxd5qxGrslE4PJEVXoiWfsGufoSG5eEr9nbYLPyy0q"
+            base_url=os.getenv("AI_BASE_URL", "https://neuroapi.host/v1"),
+            api_key=api_key
         )
-        self.model = "gpt-4.1-mini"
+        self.model = os.getenv("AI_MODEL", "gpt-4.1-mini")
 
     def _chat(self, messages, temperature=0.7, max_tokens=2000, response_format=None):
         payload = {
