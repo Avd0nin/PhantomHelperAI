@@ -60,13 +60,10 @@
             <nav class="site-nav-inline">
                 <ul class="nav-list">
                     <li><a href="/">Главная</a></li>
-                    <li><a href="/make_summary">Конспекты</a></li>
-                    <li><a href="/chat">Чат</a></li>
-                    <li><a href="/make_test">Тесты</a></li>
                     <li><a href="/help">Помощь</a></li>
                 </ul>
             </nav>
-            <div class="header-actions">
+            <div class="header-actions {% if current_user %}header-actions-profile{% else %}header-actions-auth{% endif %}">
                 <button type="button" class="theme-toggle" id="themeToggle" aria-label="Переключить тему">
                     <span class="theme-icon theme-icon-sun" aria-hidden="true">
                         <svg viewBox="0 0 24 24" focusable="false">
@@ -88,10 +85,12 @@
                     </span>
                 </button>
                 {% if current_user %}
-                    <a href="{{ url_for('profile') }}" class="user-chip" aria-label="Открыть профиль">{{ current_user["username"] }}</a>
-                    <form method="post" action="{{ url_for('logout') }}" class="header-auth-form">
-                        <button type="submit" class="nav-cta nav-cta-secondary">Выйти</button>
-                    </form>
+                    <a href="{{ url_for('profile') }}" class="user-chip user-chip--icon" aria-label="Открыть профиль" title="Профиль">
+                        <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                            <path d="M20 21a8 8 0 0 0-16 0"></path>
+                            <circle cx="12" cy="8" r="4"></circle>
+                        </svg>
+                    </a>
                 {% else %}
                     <a href="{{ url_for('login') }}" class="nav-cta">Войти</a>
                     <a href="{{ url_for('register') }}" class="nav-cta nav-cta-secondary">Регистрация</a>

@@ -9,7 +9,12 @@
         <div class="profile-head-meta">
             <p class="profile-lead">Логин: <strong>{{ current_user["username"] }}</strong></p>
             <p class="profile-head-note">Зарегистрирован: {{ current_user["created_at"] }}</p>
-            <button type="button" id="openProfileDataModal" class="profile-data-btn">Управление данными</button>
+            <div class="profile-head-actions">
+                <button type="button" id="openProfileDataModal" class="profile-data-btn">Управление данными</button>
+                <form method="post" action="{{ url_for('logout') }}" class="profile-logout-form">
+                    <button type="submit" class="profile-logout-btn">Выйти</button>
+                </form>
+            </div>
         </div>
     </div>
 

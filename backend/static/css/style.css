@@ -224,6 +224,10 @@ html.theme-switching .summary-article .katex-display {
     gap: 10px;
 }
 
+.header-actions-profile {
+    flex: 0 0 auto;
+}
+
 .assistant-profile-overlay {
     position: fixed;
     inset: 0;
@@ -526,6 +530,22 @@ html.theme-switching .summary-article .katex-display {
     outline: none;
     border-color: rgba(175, 187, 255, 0.58);
     box-shadow: 0 0 0 4px rgba(132, 166, 255, 0.18);
+}
+
+.user-chip--icon {
+    width: 46px;
+    min-width: 46px;
+    padding: 0;
+}
+
+.user-chip--icon svg {
+    width: 20px;
+    height: 20px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
 
 .theme-toggle {
@@ -1174,6 +1194,13 @@ p {
     color: #9eb2dd;
 }
 
+.profile-head-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
 .profile-data-btn {
     margin-top: 0;
     min-height: 40px;
@@ -1189,6 +1216,27 @@ p {
 .profile-data-btn:hover {
     background: rgba(255, 142, 160, 0.2);
     box-shadow: 0 8px 16px rgba(197, 72, 112, 0.24);
+}
+
+.profile-logout-form {
+    margin: 0;
+}
+
+.profile-logout-btn {
+    min-height: 40px;
+    border-radius: 999px;
+    border: 1px solid rgba(166, 184, 223, 0.34);
+    background: rgba(255, 255, 255, 0.06);
+    color: #dce8ff;
+    font-size: 0.92rem;
+    font-weight: 700;
+    padding: 8px 14px;
+    box-shadow: none;
+}
+
+.profile-logout-btn:hover {
+    background: rgba(132, 166, 255, 0.14);
+    box-shadow: 0 8px 16px rgba(47, 74, 138, 0.24);
 }
 
 .profile-alert {
@@ -3410,6 +3458,17 @@ html[data-theme='light'] .user-chip:hover {
     background: rgba(80, 117, 192, 0.2);
 }
 
+html[data-theme='light'] .profile-logout-btn {
+    color: #2f4b7f;
+    background: rgba(80, 117, 192, 0.12);
+    border-color: rgba(80, 117, 192, 0.3);
+}
+
+html[data-theme='light'] .profile-logout-btn:hover {
+    color: #234171;
+    background: rgba(80, 117, 192, 0.2);
+}
+
 html[data-theme='light'] .nav-cta-secondary {
     color: #2f4b7f;
     background: rgba(80, 117, 192, 0.14);
@@ -4400,9 +4459,16 @@ html[data-theme='light'] *::-webkit-scrollbar-thumb {
         min-width: 320px;
     }
 
+    html[data-theme='dark'] body {
+        background:
+            radial-gradient(circle at 10% 0%, rgba(83, 68, 210, 0.18) 0%, transparent 30%),
+            radial-gradient(circle at 92% 22%, rgba(31, 126, 190, 0.12) 0%, transparent 28%),
+            linear-gradient(180deg, #050711 0%, #070b18 46%, #0a1222 100%);
+    }
+
     .app-bg-orb {
-        opacity: 0.42;
-        filter: blur(82px);
+        opacity: 0.28;
+        filter: blur(88px);
     }
 
     .site-header,
@@ -4423,6 +4489,24 @@ html[data-theme='light'] *::-webkit-scrollbar-thumb {
         gap: 10px;
         padding: 10px;
         border-radius: 16px;
+    }
+
+    html[data-theme='dark'] .header-inner,
+    html[data-theme='dark'] .page-card,
+    html[data-theme='dark'] .hero-panel,
+    html[data-theme='dark'] .container,
+    html[data-theme='dark'] .site-footer {
+        background: rgba(8, 12, 26, 0.94);
+        border-color: rgba(119, 139, 191, 0.28);
+        box-shadow: 0 18px 38px rgba(0, 0, 0, 0.46);
+    }
+
+    html[data-theme='dark'] .hero-panel {
+        background: linear-gradient(160deg, rgba(11, 15, 34, 0.97), rgba(9, 18, 36, 0.95));
+    }
+
+    html[data-theme='dark'] .glass-card::before {
+        background: linear-gradient(140deg, rgba(155, 173, 224, 0.22), rgba(255, 255, 255, 0.02));
     }
 
     .logo-group {
@@ -4463,8 +4547,16 @@ html[data-theme='light'] *::-webkit-scrollbar-thumb {
         align-items: stretch;
     }
 
-    .header-actions:has(.user-chip) {
-        grid-template-columns: 44px minmax(0, 1fr) auto;
+    .header-actions-profile {
+        grid-column: 2;
+        grid-row: 1;
+        width: auto;
+        justify-self: end;
+        grid-template-columns: repeat(2, 44px);
+    }
+
+    .header-actions-auth {
+        grid-column: 1 / -1;
     }
 
     .theme-toggle {
@@ -4514,7 +4606,7 @@ html[data-theme='light'] *::-webkit-scrollbar-thumb {
 
     .nav-list {
         width: max-content;
-        max-width: none;
+        max-width: 100%;
         flex-wrap: nowrap;
         gap: 6px;
         padding-inline: 1px;
@@ -4569,12 +4661,16 @@ html[data-theme='light'] *::-webkit-scrollbar-thumb {
 
     .action-grid {
         margin-top: 16px;
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 10px;
     }
 
+    .action-button-primary {
+        grid-column: 1 / -1;
+    }
+
     .action-button {
-        min-height: 50px;
+        min-height: 54px;
         padding: 10px 12px;
         border-radius: 12px;
         font-size: 1rem;
@@ -4841,6 +4937,7 @@ html[data-theme='light'] *::-webkit-scrollbar-thumb {
     }
 
     .profile-item-actions,
+    .profile-head-actions,
     .test-actions,
     .result-actions,
     .profile-modal-actions {
@@ -4850,6 +4947,8 @@ html[data-theme='light'] *::-webkit-scrollbar-thumb {
 
     .result-actions .back-button,
     .result-actions .secondary-btn,
+    .profile-head-actions .profile-data-btn,
+    .profile-head-actions .profile-logout-btn,
     .test-actions .submit-btn,
     .profile-modal-actions .secondary-btn,
     .profile-modal-actions .danger-btn {
@@ -4886,12 +4985,8 @@ html[data-theme='light'] *::-webkit-scrollbar-thumb {
         gap: 6px;
     }
 
-    .header-actions:has(.user-chip) {
-        grid-template-columns: 40px minmax(0, 1fr);
-    }
-
-    .header-actions:has(.user-chip) .header-auth-form {
-        grid-column: 1 / -1;
+    .header-actions-profile {
+        grid-template-columns: repeat(2, 40px);
     }
 
     .theme-toggle {
@@ -4909,15 +5004,15 @@ html[data-theme='light'] *::-webkit-scrollbar-thumb {
     }
 
     .nav-list {
-        width: 100%;
-        gap: 4px;
-        justify-content: space-between;
+        width: max-content;
+        gap: 5px;
+        justify-content: flex-start;
     }
 
     .nav-list a {
         min-height: 32px;
-        padding: 5px 7px;
-        font-size: 0.78rem;
+        padding: 5px 10px;
+        font-size: 0.82rem;
     }
 
     .page-card,
@@ -4956,6 +5051,10 @@ html[data-theme='light'] *::-webkit-scrollbar-thumb {
 
     .header-actions {
         grid-template-columns: 38px 1fr;
+    }
+
+    .header-actions-profile {
+        grid-template-columns: repeat(2, 38px);
     }
 
     .header-actions > .nav-cta-secondary,
