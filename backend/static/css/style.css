@@ -23,6 +23,8 @@
 
 html {
     scrollbar-gutter: stable;
+    min-height: 100%;
+    background: var(--bg-base);
 }
 
 * {
@@ -36,6 +38,7 @@ body {
     flex-direction: column;
     font-family: 'Manrope', 'Segoe UI', sans-serif;
     color: var(--text-main);
+    background-color: var(--bg-base);
     background:
         radial-gradient(circle at 8% 14%, rgba(113, 78, 255, 0.2) 0%, transparent 34%),
         radial-gradient(circle at 88% 12%, rgba(64, 159, 246, 0.22) 0%, transparent 30%),
@@ -43,6 +46,11 @@ body {
         linear-gradient(165deg, var(--bg-base) 0%, var(--bg-deep) 38%, var(--bg-mid) 100%);
     overflow-x: hidden;
     position: relative;
+}
+
+html[data-theme='dark'] {
+    color-scheme: dark;
+    background: #050711;
 }
 
 body.profile-open {
@@ -3332,6 +3340,7 @@ html[data-theme='light'] {
     --success: #1f9462;
     --danger: #ca4462;
     --shadow: 0 20px 42px rgba(56, 84, 138, 0.18);
+    background: var(--bg-base);
 }
 
 html[data-theme='light'] body {
@@ -4453,17 +4462,21 @@ html[data-theme='light'] *::-webkit-scrollbar-thumb {
 @media (max-width: 760px) {
     html {
         -webkit-text-size-adjust: 100%;
+        background: #050711;
     }
 
     body {
         min-width: 320px;
+        min-height: 100dvh;
     }
 
+    html[data-theme='dark'],
     html[data-theme='dark'] body {
+        background-color: #050711;
         background:
             radial-gradient(circle at 10% 0%, rgba(83, 68, 210, 0.18) 0%, transparent 30%),
             radial-gradient(circle at 92% 22%, rgba(31, 126, 190, 0.12) 0%, transparent 28%),
-            linear-gradient(180deg, #050711 0%, #070b18 46%, #0a1222 100%);
+            linear-gradient(180deg, #050711 0%, #070b18 44%, #050711 100%);
     }
 
     .app-bg-orb {
@@ -4557,6 +4570,7 @@ html[data-theme='light'] *::-webkit-scrollbar-thumb {
 
     .header-actions-auth {
         grid-column: 1 / -1;
+        justify-content: center;
     }
 
     .theme-toggle {
@@ -4593,7 +4607,7 @@ html[data-theme='light'] *::-webkit-scrollbar-thumb {
         width: 100%;
         min-width: 0;
         order: initial;
-        justify-content: flex-start;
+        justify-content: center;
         overflow-x: auto;
         padding-bottom: 2px;
         scrollbar-width: none;
@@ -4605,11 +4619,12 @@ html[data-theme='light'] *::-webkit-scrollbar-thumb {
     }
 
     .nav-list {
-        width: max-content;
+        width: auto;
         max-width: 100%;
         flex-wrap: nowrap;
         gap: 6px;
         padding-inline: 1px;
+        justify-content: center;
     }
 
     .nav-list a {
@@ -5004,9 +5019,9 @@ html[data-theme='light'] *::-webkit-scrollbar-thumb {
     }
 
     .nav-list {
-        width: max-content;
+        width: auto;
         gap: 5px;
-        justify-content: flex-start;
+        justify-content: center;
     }
 
     .nav-list a {
