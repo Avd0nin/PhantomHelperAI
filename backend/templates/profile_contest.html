@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Сохранённый контест{% endblock %}
+
+{% block content %}
+<section class="page-card glass-card container">
+    <div class="profile-entity-head">
+        {% set tasks_count = contest["tasks_count"] or 0 %}
+        {% set task_word = 'задача' if tasks_count % 10 == 1 and tasks_count % 100 != 11 else ('задачи' if tasks_count %
+        10 in [2, 3, 4] and tasks_count % 100 not in [12, 13, 14] else 'задач') %}
+        {% set raw_title = contest["title"] or '' %}
+        {% set title_lower = raw_title|lower %}
+        {% set display_title = ('Контест на ' ~ tasks_count ~ ' ' ~ task_word) if (not raw_title or
+        title_lower.startswith('контест:')) else raw_title %}
+        <h1 class="page-title-sm no-copy profile-item-title--contest">{{ display_title }}</h1>
+        <p class="profile-item-meta">
+            {{ tasks_count }} {{ task_word }} • Сложность: {{ contest["difficulty_label"] or contest["difficulty"] }} •
+            Длительность: {{ contest["duration_minutes"] }} мин • Создан: {{ contest["created_at"] }}
+        </p>
+        {% if contest["description"] %}
+        <p class="profile-item-meta">{{ contest["description"] }}</p>
+        {% endif %}
+    </div>
+
+    <section class="profile-attempts">
+        <h2 class="page-title-sm no-copy">История попыток</h2>
+        {% if attempts %}
+        <div class="profile-list">
+            {% for attempt in attempts %}
+            {% set solved = attempt["solved_count"] or 0 %}
+            {% set total = attempt["total_tasks"] or 0 %}
+            {% set unsolved = (total - solved) if total > solved else 0 %}
+            <article class="profile-item">
+                <h3 class="profile-item-title">{{ attempt["solved_count"] }}/{{ attempt["total_tasks"] }} ({{
+                    attempt["score"] }}%)</h3>
+                <p class="profile-item-meta">
+                    Решено: {{ solved }} • Не решено: {{ unsolved }} • Запусков: {{ attempt["attempts_count"] }}
+                </p>
+                <p class="profile-item-meta">
+                    Время: {{ attempt["time_used_sec"] }} сек • {{ attempt["created_at"] }}
+                </p>
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="profile-empty">По этому контесту пока нет сохранённых попыток.</p>
+        {% endif %}
+    </section>
+
+    <div class="result-actions">
+        <a class="back-button" href="{{ url_for('profile', tab='contests') }}">Назад к контестам</a>
+        <a class="back-button back-button--replay"
+            href="{{ url_for('make_test', mode='contest', contest_id=contest['id']) }}">Решить заново</a>
+    </div>
+</section>
+{% endblock %}

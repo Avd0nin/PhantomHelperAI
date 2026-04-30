@@ -1343,6 +1343,9 @@ p {
     padding: 18px;
     border-radius: 16px;
     border: 1px solid rgba(255, 142, 160, 0.34);
+    background: rgba(10, 16, 34, 0.94);
+    backdrop-filter: blur(28px) saturate(160%);
+    box-shadow: 0 24px 52px rgba(0, 0, 0, 0.42);
     opacity: 0;
     transform: translateY(10px) scale(0.985);
     transition: transform 0.24s cubic-bezier(0.2, 0.82, 0.26, 1), opacity 0.24s ease;
@@ -2923,7 +2926,7 @@ strong {
 
 .contest-code-input::selection {
     background: rgba(121, 150, 255, 0.35);
-    color: rgba(232, 242, 255, 0.015);
+    color: #f8fbff;
 }
 
 .contest-code-editor {
@@ -3507,6 +3510,19 @@ html[data-theme='light'] li {
     color: #3f537e;
 }
 
+html[data-theme='light'] .fast-badge,
+html[data-theme='light'] .hero-kicker {
+    color: #1d5f84;
+    border-color: rgba(31, 119, 166, 0.34);
+    background: rgba(63, 173, 219, 0.14);
+}
+
+html[data-theme='light'] .gradient-title {
+    background: linear-gradient(95deg, #354fa0 0%, #117a9f 48%, #5a46b5 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+}
+
 html[data-theme='light'] .offer-card {
     background: rgba(255, 255, 255, 0.7);
     border-color: rgba(98, 124, 183, 0.28);
@@ -3515,6 +3531,14 @@ html[data-theme='light'] .offer-card {
 html[data-theme='light'] .offer-top {
     background: linear-gradient(115deg, rgba(137, 166, 230, 0.22), rgba(139, 200, 244, 0.18));
     border-color: rgba(98, 124, 183, 0.26);
+}
+
+html[data-theme='light'] .offer-title {
+    color: #1d315b;
+}
+
+html[data-theme='light'] .offer-price {
+    color: #136b9a;
 }
 
 html[data-theme='light'] input[type='text'],
@@ -3643,6 +3667,7 @@ html[data-theme='light'] .contest-checkbox input[type='checkbox']:checked + .con
 
 html[data-theme='light'] .contest-finish-score {
     border-color: rgba(96, 124, 186, 0.38);
+    background: linear-gradient(135deg, #4f57c8 0%, #1f65b2 100%);
     color: #ffffff;
 }
 
@@ -3699,6 +3724,25 @@ html[data-theme='light'] .contest-run-test h5 {
     color: #1e3561;
 }
 
+html[data-theme='light'] .contest-difficulty-easy {
+    background: rgba(35, 149, 99, 0.14);
+    border-color: rgba(35, 149, 99, 0.3);
+    color: #176a47;
+}
+
+html[data-theme='light'] .contest-difficulty-medium {
+    background: rgba(82, 108, 208, 0.14);
+    border-color: rgba(82, 108, 208, 0.32);
+    color: #334f9a;
+}
+
+html[data-theme='light'] .contest-difficulty-hard,
+html[data-theme='light'] .contest-difficulty-olymp {
+    background: rgba(198, 64, 99, 0.12);
+    border-color: rgba(198, 64, 99, 0.32);
+    color: #913250;
+}
+
 html[data-theme='light'] .contest-io-block {
     border-color: rgba(97, 123, 182, 0.24);
     background: rgba(244, 249, 255, 0.92);
@@ -3716,6 +3760,7 @@ html[data-theme='light'] .contest-code-editor:focus-within {
 }
 
 html[data-theme='light'] .contest-code-editor .CodeMirror {
+    background: #f8fbff;
     color: #1f355f;
 }
 
@@ -3725,7 +3770,7 @@ html[data-theme='light'] .contest-code-editor .CodeMirror-gutters {
 }
 
 html[data-theme='light'] .contest-code-editor .CodeMirror-linenumber {
-    color: #5f79ad;
+    color: #4f6597;
 }
 
 html[data-theme='light'] .contest-code-editor .CodeMirror-cursor {
@@ -3737,6 +3782,56 @@ html[data-theme='light'] .contest-code-editor .CodeMirror-line::selection,
 html[data-theme='light'] .contest-code-editor .CodeMirror-line > span::selection,
 html[data-theme='light'] .contest-code-editor .CodeMirror-line > span > span::selection {
     background: rgba(93, 126, 208, 0.24) !important;
+}
+
+html[data-theme='light'] .contest-code-input::selection {
+    background: rgba(93, 126, 208, 0.26);
+    color: #10264f;
+}
+
+html[data-theme='light'] .contest-code-editor .CodeMirror-lines,
+html[data-theme='light'] .contest-code-editor .CodeMirror pre,
+html[data-theme='light'] .contest-code-editor .CodeMirror-line {
+    color: #1f355f;
+}
+
+html[data-theme='light'] .contest-code-editor .CodeMirror-placeholder {
+    color: #667da8;
+}
+
+html[data-theme='light'] .contest-code-editor .cm-keyword {
+    color: #6d3bb8;
+}
+
+html[data-theme='light'] .contest-code-editor .cm-operator,
+html[data-theme='light'] .contest-code-editor .cm-meta {
+    color: #245a91;
+}
+
+html[data-theme='light'] .contest-code-editor .cm-number,
+html[data-theme='light'] .contest-code-editor .cm-atom {
+    color: #9a4f12;
+}
+
+html[data-theme='light'] .contest-code-editor .cm-builtin,
+html[data-theme='light'] .contest-code-editor .cm-def,
+html[data-theme='light'] .contest-code-editor .cm-type,
+html[data-theme='light'] .contest-code-editor .cm-tag {
+    color: #145da6;
+}
+
+html[data-theme='light'] .contest-code-editor .cm-string {
+    color: #1d7b4c;
+}
+
+html[data-theme='light'] .contest-code-editor .cm-comment {
+    color: #687d9d;
+}
+
+html[data-theme='light'] .contest-code-editor .cm-variable,
+html[data-theme='light'] .contest-code-editor .cm-variable-2,
+html[data-theme='light'] .contest-code-editor .cm-property {
+    color: #22385f;
 }
 
 html[data-theme='light'] .contest-language-trigger {
@@ -3919,6 +4014,8 @@ html[data-theme='light'] .profile-modal {
 
 html[data-theme='light'] .profile-modal-card {
     border-color: rgba(203, 86, 118, 0.34);
+    background: rgba(249, 252, 255, 0.96);
+    box-shadow: 0 24px 52px rgba(54, 82, 144, 0.22);
 }
 
 html[data-theme='light'] .profile-modal-text {
@@ -3965,13 +4062,31 @@ html[data-theme='light'] .message.assistant .message-content a:hover {
 }
 
 html[data-theme='light'] .action-button,
-html[data-theme='light'] .help-back-btn {
+html[data-theme='light'] .help-back-btn,
+html[data-theme='light'] .primary-btn {
     color: #f4f7ff;
 }
 
 html[data-theme='light'] .action-button:hover,
-html[data-theme='light'] .help-back-btn:hover {
+html[data-theme='light'] .help-back-btn:hover,
+html[data-theme='light'] .primary-btn:hover {
     color: #ffffff;
+}
+
+html[data-theme='light'] .action-button-accent {
+    background: linear-gradient(135deg, #0b7eaa 0%, #356fdb 52%, #6550c5 100%);
+}
+
+html[data-theme='light'] .secondary-btn {
+    color: #29477a;
+    border-color: rgba(97, 123, 182, 0.34);
+    background: rgba(255, 255, 255, 0.78);
+}
+
+html[data-theme='light'] .secondary-btn:hover {
+    color: #1f3a68;
+    background: rgba(232, 241, 255, 0.92);
+    box-shadow: 0 10px 20px rgba(77, 112, 179, 0.16);
 }
 
 html[data-theme='light'] .help-block {
